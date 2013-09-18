@@ -7,16 +7,27 @@
 #  $ ./check_vsphere.py -H 10.1.1.1 -u admin -p guessme -A datastore
 #
 # Action 'general_health':
+# -----------------------------------------
 # -W (ignored)
 # -C (ignored)
 #
 # Action 'connect':
+# -----------------------------------------
 #  -W <seconds> (3)
 #  -C <seconds> (6)
 #
 # Action 'datastore':
-#  -W <GiB free> (100)
-#  -C <GiB free> (50)
+# -----------------------------------------
+#  -W <GiB free#Percent Free> (100#10)
+#  -C <GiB free#Percent Free> (50#5)
+#
+# Alert will only show if both conditions are met:
+# a) GiB free is less than the GiB threshold 
+# b) percentage free is less than the % threshold
+#
+# e.g. with a warning threshold of 100#10:
+# - host with 10Gig free on a 50Gig datastore will NOT alert (20% free is greater than 10% threshold)
+# - host with 10Gig free on a 500Gig datastore WILL alert (2% free is less than 10% threshold)
 #
 
 import sys
@@ -45,8 +56,13 @@ def main(argv):
     user = options.user
     passwd = options.passwd
     action = options.action
-    warning = float(options.warning or 0) 
-    critical = float(options.critical or 0) 
+   
+    if action != "datastore":
+        warning = float(options.warning or 0) 
+        critical = float(options.critical or 0) 
+    else:
+        warning = options.warning
+        critical = options.critical
 
     if user is None:
         print "You need to enter a username"
@@ -154,8 +170,22 @@ def general_health(server):
         sys.exit(2)
 
 def datastore(server, warning, critical):
-    warning = warning or 100
-    critical = critical or 50
+
+    bits = warning.split('#')
+    warningGB = float(bits[0] or 100)  
+    if len(bits) > 1:
+        warningPC = float(bits[1] or 100)
+    else:
+        warningPC = 100
+
+    bits = critical.split('#')
+    criticalGB = float(bits[0] or 50)
+    if len(bits) > 1:
+         criticalPC = float(bits[1] or 100)
+    else:
+         criticalPC = 100
+
+    print "warn GB %f warn %% %f, crit GB %f crit %% %f" % (warningGB, warningPC, criticalGB, criticalPC)
 
     ds_by_dc = {}
     for dc_mor, dc_name in server.get_datacenters().items():
@@ -179,13 +209,13 @@ def datastore(server, warning, critical):
     critStr = ''
     for name in ds_by_dc:
 
-        pcFree = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
-        freeGig = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
+        freePC = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
+        freeGB = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
 
-        if freeGig < warning:
-            warnStr += "%s [%s] has %.2f%% GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGig, pcFree)
-        if freeGig < critical:
-            critStr += "%s [%s] has %.2f% GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGig, pcFree)
+        if freeGB < warningGB and freePC < warningPC:
+            warnStr += "%s [%s] has %.2f GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC)
+        if freeGB < criticalGB and freePC < criticalPC:
+            critStr += "%s [%s] has %.2f GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC)
 
     if len(critStr) > 0:
         print critStr
