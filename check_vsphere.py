@@ -1,4 +1,23 @@
 #!/usr/bin/env python
+#
+# Code based on: https://github.com/mzupan/nagios-plugin-vsphere
+#
+# Example usage:
+#
+#  $ ./check_vsphere.py -H 10.1.1.1 -u admin -p guessme -A datastore
+#
+# Action 'general_health':
+# -W (ignored)
+# -C (ignored)
+#
+# Action 'connect':
+#  -W <seconds> (3)
+#  -C <seconds> (6)
+#
+# Action 'datastore':
+#  -W <GiB free> (100)
+#  -C <GiB free> (50)
+#
 
 import sys
 import optparse
@@ -135,8 +154,8 @@ def general_health(server):
         sys.exit(2)
 
 def datastore(server, warning, critical):
-    warning = warning or 10
-    critical = critical or 5
+    warning = warning or 100
+    critical = critical or 50
 
     ds_by_dc = {}
     for dc_mor, dc_name in server.get_datacenters().items():
@@ -163,10 +182,10 @@ def datastore(server, warning, critical):
         pcFree = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
         freeGig = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
 
-        if pcFree < warning:
-            warnStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
-        if pcFree < critical:
-            critStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
+        if freeGig < warning:
+            warnStr += "%s [%s] has %.2f%% GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGig, pcFree)
+        if freeGig < critical:
+            critStr += "%s [%s] has %.2f% GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGig, pcFree)
 
     if len(critStr) > 0:
         print critStr
