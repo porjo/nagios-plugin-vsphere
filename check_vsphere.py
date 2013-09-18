@@ -8,8 +8,7 @@
 #
 # Action 'general_health':
 # -----------------------------------------
-# -W (ignored)
-# -C (ignored)
+# Thresholds are ignored. Instead, a critical alert is issued 
 #
 # Action 'connect':
 # -----------------------------------------
@@ -185,7 +184,7 @@ def datastore(server, warning, critical):
     else:
          criticalPC = 100
 
-    print "warn GB %f warn %% %f, crit GB %f crit %% %f" % (warningGB, warningPC, criticalGB, criticalPC)
+    #print "warn GB %f warn %% %f, crit GB %f crit %% %f" % (warningGB, warningPC, criticalGB, criticalPC)
 
     ds_by_dc = {}
     for dc_mor, dc_name in server.get_datacenters().items():
@@ -205,23 +204,25 @@ def datastore(server, warning, critical):
             elif p.Name == 'summary.freeSpace':
                 ds_by_dc[item.Obj]['free'] = p.Val
 
-    warnStr = ''
-    critStr = ''
+    warnings = []
+    criticals = []
     for name in ds_by_dc:
 
         freePC = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
         freeGB = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
 
         if freeGB < warningGB and freePC < warningPC:
-            warnStr += "%s [%s] has %.2f GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC)
+            warnings.append( "%s [%s] has %.2f GiB disk space free (%.2f%%)" % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC) )
         if freeGB < criticalGB and freePC < criticalPC:
-            critStr += "%s [%s] has %.2f GiB disk space free (%.2f%%). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC)
+            criticals.append( "%s [%s] has %.2f GiB disk space free (%.2f%%)" % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC) )
 
-    if len(critStr) > 0:
-        print critStr
+    if len(criticals) > 0:
+	for c in criticals:
+            print c
         sys.exit(2)
-    elif len(warnStr) > 0:
-        print warnStr
+    elif len(warnings) > 0:
+	for w in warnings:
+            print w
         sys.exit(1)
     else:
         print "Datastores OK"
