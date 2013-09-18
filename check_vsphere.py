@@ -163,8 +163,8 @@ def datastore(server, warning, critical):
         pcFree = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
         freeGig = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
 
-    if pcFree < warning:
-        warnStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
+        if pcFree < warning:
+            warnStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
         if pcFree < critical:
             critStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
 
