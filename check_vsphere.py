@@ -5,7 +5,7 @@ import optparse
 import time
 
 try:
-    from pysphere import *
+    from pysphere import VIServer, MORTypes, VIProperty
 except ImportError, e:
     print e
     sys.exit(2)
@@ -17,7 +17,7 @@ def main(argv):
     p.add_option('-u', '--user', action='store', type='string', dest='user', default=None, help='The username you want to login as')
     p.add_option('-p', '--pass', action='store', type='string', dest='passwd', default=None, help='The password you want to use for that user')
     p.add_option('-A', '--action', action='store', type='choice', dest='action', default='connect', help='The action you want to take',
-                 choices=['connect', 'general_health'])
+                 choices=['connect', 'general_health', 'datastore'])
     p.add_option('-W', '--warning', action='store', dest='warning', default=None, help='The warning threshold we want to set')
     p.add_option('-C', '--critical', action='store', dest='critical', default=None, help='The critical threshold we want to set')
     options, arguments = p.parse_args()
@@ -49,7 +49,9 @@ def main(argv):
     conn_time = round(conn_time, 0)
 
     if action == "general_health":
-        return general_health(server, warning, critical)
+        return general_health(server)
+    elif action == "datastore":
+        return datastore(server, warning, critical)
     else:
         return check_connect(conn_time, warning, critical)
 
@@ -108,7 +110,7 @@ def check_connect(conn_time, warning, critical):
 
     return check_levels(conn_time,warning,critical,message)
 
-def general_health(server, warning, critical):
+def general_health(server):
     pm = server.get_performance_manager()
 
     props = server._retrieve_properties_traversal(property_names=['name', 'summary.overallStatus'], obj_type="HostSystem")
@@ -131,6 +133,54 @@ def general_health(server, warning, critical):
             print error
 
         sys.exit(2)
+
+def datastore(server, warning, critical):
+    warning = warning or 10
+    critical = critical or 5
+
+    ds_by_dc = {}
+    for dc_mor, dc_name in server.get_datacenters().items():
+        p = VIProperty(server, dc_mor)
+        for ds in p.datastore:
+            ds_by_dc[ds._obj] = {'ds_name': '', 'dc_name': dc_name, 'capacity': 0, 'free': 0}
+
+    properties = ["name","summary.capacity","summary.freeSpace"]
+    results = server._retrieve_properties_traversal(property_names=properties,obj_type=MORTypes.Datastore)
+
+    for item in results:
+      for p in item.PropSet:
+	 if p.Name == 'name':
+		ds_by_dc[item.Obj]['ds_name'] = p.Val
+	 if p.Name == 'summary.capacity':
+		ds_by_dc[item.Obj]['capacity'] = p.Val
+	 if p.Name == 'summary.freeSpace':
+		ds_by_dc[item.Obj]['free'] = p.Val
+
+    warnStr = ''
+    critStr = ''
+    for name in ds_by_dc:
+
+	pcFree = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
+	freeGig = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
+
+	if pcFree < warning:
+		warnStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
+	if pcFree < critical:
+		critStr += "%s [%s] has %.2f%% disk space free (%.2f GiB). " % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], pcFree, freeGig)
+
+    if len(critStr) > 0:
+	print critStr
+       	sys.exit(2)
+    elif len(warnStr) > 0:
+	print warnStr
+       	sys.exit(1)
+    else:
+	print "Datastores OK"
+       	sys.exit(0)
+
+    print "No Datastores found, or other error"
+    sys.exit(3)
+
 #
 # main app
 #
