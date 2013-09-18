@@ -8,7 +8,7 @@
 #
 # Action 'general_health':
 # -----------------------------------------
-# Thresholds are ignored. Instead, a critical alert is issued 
+# Thresholds are ignored. Instead, a critical alert is issued if errors are returned
 #
 # Action 'connect':
 # -----------------------------------------
@@ -60,8 +60,8 @@ def main(argv):
         warning = float(options.warning or 0) 
         critical = float(options.critical or 0) 
     else:
-        warning = options.warning
-        critical = options.critical
+        warning = options.warning or ''
+        critical = options.critical or ''
 
     if user is None:
         print "You need to enter a username"
@@ -175,16 +175,16 @@ def datastore(server, warning, critical):
     if len(bits) > 1:
         warningPC = float(bits[1] or 100)
     else:
-        warningPC = 100
+        warningPC = float(100)
 
     bits = critical.split('#')
     criticalGB = float(bits[0] or 50)
     if len(bits) > 1:
          criticalPC = float(bits[1] or 100)
     else:
-         criticalPC = 100
+         criticalPC = float(100)
 
-    #print "warn GB %f warn %% %f, crit GB %f crit %% %f" % (warningGB, warningPC, criticalGB, criticalPC)
+    #print "DEBUG: warn GB %f warn %% %f, crit GB %f crit %% %f" % (warningGB, warningPC, criticalGB, criticalPC)
 
     ds_by_dc = {}
     for dc_mor, dc_name in server.get_datacenters().items():
@@ -211,6 +211,8 @@ def datastore(server, warning, critical):
         freePC = float(ds_by_dc[name]['free']) / float(ds_by_dc[name]['capacity']) * 100
         freeGB = float(ds_by_dc[name]['free']) / 1024 / 1024 / 1024
 
+        #print "DEBUG: %s %s %.2f %.2f%%" % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC)
+    
         if freeGB < warningGB and freePC < warningPC:
             warnings.append( "%s [%s] has %.2f GiB disk space free (%.2f%%)" % (ds_by_dc[name]['ds_name'], ds_by_dc[name]['dc_name'], freeGB, freePC) )
         if freeGB < criticalGB and freePC < criticalPC:
@@ -219,6 +221,8 @@ def datastore(server, warning, critical):
     if len(criticals) > 0:
 	for c in criticals:
             print c
+	for w in warnings:
+            print w
         sys.exit(2)
     elif len(warnings) > 0:
 	for w in warnings:
