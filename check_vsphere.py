@@ -6,17 +6,31 @@
 #
 #  $ ./check_vsphere.py -H 10.1.1.1 -u admin -p guessme -A datastore
 #
+# -A is one of the following
+#
 # Action 'general_health':
 # -----------------------------------------
+# Checks the 'overallStatus' register for each host. 
 # Thresholds are ignored. Instead, a critical alert is issued if errors are returned
+# The following statuses are possible:
+#
+# gray		The status is unknown.
+# green		The entity is OK.
+# red		The entity definitely has a problem.
+# yellow	The entity might have a problem. 
+#
 #
 # Action 'connect':
 # -----------------------------------------
+# Will alert if the time taken to connect to the server exceeds thresholds:
+#
 #  -W <seconds> (3)
 #  -C <seconds> (6)
 #
 # Action 'datastore':
 # -----------------------------------------
+# Checks each datastore in the VirtualCenter, alerting where thresholds exceed:
+#
 #  -W <GiB free#Percent Free> (100#10)
 #  -C <GiB free#Percent Free> (50#5)
 #
@@ -149,14 +163,16 @@ def general_health(server):
 
     props = server._retrieve_properties_traversal(property_names=['name', 'summary.overallStatus'], obj_type="HostSystem")
 
-
     errors = []
     for prop_set in props:
         for prop in prop_set.PropSet:
             if prop.Name == "name":
                 host = prop.Val
             elif prop.Name == "summary.overallStatus":
-                if prop.Val != "green":
+                #print "DEBUG: Host: %s is in state of %s" % (host, prop.Val)
+                if prop.Val == "gray":
+                    errors.append("Host: %s is in an unknown state (gray)" % host)
+                elif prop.Val != "green":
                     errors.append("Host: %s is in state of %s" % (host, prop.Val))
 
     if len(errors) == 0:
