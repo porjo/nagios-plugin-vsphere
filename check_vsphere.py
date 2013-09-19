@@ -89,7 +89,6 @@ def main(argv):
     # always make the connection first
     server = VIServer()
     start = time.time()
-    print "host %s, user %s pass %s" % (host,user,passwd)
     try:
         server.connect(host, user, passwd)
     except Exception, e:
