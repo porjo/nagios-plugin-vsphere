@@ -67,6 +67,7 @@ def main(argv):
 
     host = options.host
     user = options.user
+    user = user.replace('\\\\','\\') #fixup <domain\user> syntax
     passwd = options.passwd
     action = options.action
    
@@ -88,6 +89,7 @@ def main(argv):
     # always make the connection first
     server = VIServer()
     start = time.time()
+    print "host %s, user %s pass %s" % (host,user,passwd)
     try:
         server.connect(host, user, passwd)
     except Exception, e:
