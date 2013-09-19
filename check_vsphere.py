@@ -93,8 +93,8 @@ def main(argv):
     except Exception, e:
         print "Connection to VSphere failed: ", e
         sys.exit(2)
-        conn_time = time.time() - start
-        conn_time = round(conn_time, 0)
+    conn_time = time.time() - start
+    conn_time = round(conn_time, 0)
 
     if action == "general_health":
         return general_health(server)
